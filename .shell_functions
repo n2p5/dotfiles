@@ -1,0 +1,36 @@
+#!/bin/bash
+
+aws_env() {
+    local profile="${1}"
+    
+    if [[ -z "$profile" ]]; then
+        echo "Usage: aws_env <profile-name>" >&2
+        return 1
+    fi
+    
+    # Check if we need to login first
+    if ! aws sts get-caller-identity --profile "$profile" &>/dev/null; then
+        echo "SSO session expired or not logged in. Running 'aws sso login'..." >&2
+        aws sso login --profile "$profile" || return 1
+    fi
+    
+    # Export the credentials
+    local creds
+    creds=$(aws configure export-credentials --profile "$profile" --format env 2>/dev/null)
+    
+    if [[ -z "$creds" ]]; then
+        echo "Failed to export credentials for profile: $profile" >&2
+        return 1
+    fi
+    
+    # Evaluate the export commands
+    eval "$creds"
+    
+    # Verify it worked and show what's set
+    if [[ -n "$AWS_ACCESS_KEY_ID" ]]; then
+        echo "✓ AWS credentials set for profile: $profile" >&2
+    else
+        echo "Failed to set AWS credentials" >&2
+        return 1
+    fi
+}

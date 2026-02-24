@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# Allow these
+!.zshrc
+!.tmux.conf
+!.gitignore
+!.shell_functions
+!.github/
+!.github/README.md
+!.github/LICENSE
