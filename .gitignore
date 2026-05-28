@@ -12,4 +12,6 @@
 !.shell_functions
 !.tmux.conf
 !.zshrc
+!docs/
+!docs/**
 
