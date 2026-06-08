@@ -1,15 +1,16 @@
-# Ignore everything
-*
+# macOS / OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
 
-# Allow these
-!.config/
-!.config/nvim/
-!.config/nvim/init.lua
-!.github/
-!.github/README.md
-!.github/LICENSE
-!.gitignore
-!.shell_functions
-!.tmux.conf
-!.zshrc
+# Editor swap & backup files
+*~
+*.swp
+*.swo
+.idea/
+.vscode/
 
+# Per-user, never committed
+.claude/settings.local.json
+.env
+.env.local
