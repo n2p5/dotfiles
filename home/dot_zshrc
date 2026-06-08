@@ -17,9 +17,6 @@ export PATH=$GOPATH/bin:$PATH
 export PATH="$HOME/.cargo/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
-# --- dotfiles management ---
-alias ddot='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
-
 # --- custom functions and local overrides ---
 [[ -f ~/.shell_functions ]] && source $HOME/.shell_functions
 
