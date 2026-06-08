@@ -2,7 +2,21 @@
 
 - **Date:** 2026-05-27
 - **Repo:** `github.com/n2p5/dotfiles`
-- **Status:** Approved (this is the written form of an approved conversational design)
+- **Status:** Approved 2026-05-27; **partially superseded — read the Update below before the body.**
+
+## Update — 2026-06-07 (revised during incremental implementation)
+
+The body below remains the north-star reference, but several decisions changed as the design was built incrementally. **Where this update conflicts with the body, this update wins.**
+
+- **Reframing.** The setup is personal-first and simple; agentworks and exe.dev are contexts it must run under *without breaking their assumptions* — not the purpose. The "agentworks is the forcing function" framing (Background, D1) is softened: chezmoi is simply a better personal tool than the bare repo and *also* yields a clean `install.sh` seam. exe.dev is just an SSH box, not a modeled target.
+- **Two layers, separated (revises D4).** chezmoi does **not** orchestrate tool installation. `home/` is the chezmoi source = **configuration only**. A sibling `provision/` at the repo root (outside `home/`, invisible to chezmoi) is the **provisioning layer** = tools (`provision/Brewfile` now; a mise manifest later). The bootstrap orchestrates provisioning and chezmoi as *peers*. On agent machines, agentworks already **is** the provisioning layer (it owns apt and runs `mise install` from a lockfile), so the dotfiles never install system packages there.
+- **Dropped: the `kind` taxonomy and all `.chezmoi.toml.tmpl` prompts.** OS branching comes from chezmoi's auto-detected `.chezmoi.os`; there are no `personal`/`vm`/`agent` modes and no interactive prompts (which keeps the agentworks seam non-interactive for free).
+- **The run-script ladder mostly evaporates.** mise / brew / apt / Claude Code installs move to `provision/`; only genuine user-config setup (e.g. oh-my-zsh) would remain as a chezmoi `run_` script. The reserved `30` skills slot is dropped.
+- **Source-location model.** chezmoi's default `~/.local/share/chezmoi` is the real source on every machine (canonical `chezmoi init n2p5/dotfiles`); an optional `~/src/github.com/n2p5/dotfiles` symlink preserves the `~/src` convention. Never make chezmoi's source dir itself a symlink.
+- **Delivery is incremental** — the spec is a reference, not a checklist; rungs are added only when a concrete need appears.
+  - Increment 1 ✅ (PR #1) — retire the bare repo; chezmoi manages existing config (`.chezmoiroot` → `home/`).
+  - Increment 2 ✅ (PR #2) — `provision/Brewfile`, the curated Mac tool manifest.
+- **Still open / deferred:** mise lockfile filename + enable flag (OQ#2); a `make provision` / `bootstrap.sh` runner; macOS `defaults`; the `install.sh` shim; the skills subsystem.
 
 ## Summary
 
