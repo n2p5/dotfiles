@@ -8,9 +8,9 @@
 
 The body below remains the north-star reference, but several decisions changed as the design was built incrementally. **Where this update conflicts with the body, this update wins.**
 
-- **Reframing.** The setup is personal-first and simple; agentworks and exe.dev are contexts it must run under *without breaking their assumptions* — not the purpose. The "agentworks is the forcing function" framing (Background, D1) is softened: chezmoi is simply a better personal tool than the bare repo and *also* yields a clean `install.sh` seam. exe.dev is just an SSH box, not a modeled target.
-- **Two layers, separated (revises D4).** chezmoi does **not** orchestrate tool installation. `home/` is the chezmoi source = **configuration only**. A sibling `provision/` at the repo root (outside `home/`, invisible to chezmoi) is the **provisioning layer** = tools (`provision/Brewfile` now; a mise manifest later). The bootstrap orchestrates provisioning and chezmoi as *peers*. On agent machines, agentworks already **is** the provisioning layer (it owns apt and runs `mise install` from a lockfile), so the dotfiles never install system packages there.
-- **Dropped: the `kind` taxonomy and all `.chezmoi.toml.tmpl` prompts.** OS branching comes from chezmoi's auto-detected `.chezmoi.os`; there are no `personal`/`vm`/`agent` modes and no interactive prompts (which keeps the agentworks seam non-interactive for free).
+- **Reframing.** The setup is personal-first and simple; the VM manager and exe.dev are contexts it must run under *without breaking their assumptions* — not the purpose. The "VM manager as forcing function" framing (Background, D1) is softened: chezmoi is simply a better personal tool than the bare repo and *also* yields a clean `install.sh` seam. exe.dev is just an SSH box, not a modeled target.
+- **Two layers, separated (revises D4).** chezmoi does **not** orchestrate tool installation. `home/` is the chezmoi source = **configuration only**. A sibling `provision/` at the repo root (outside `home/`, invisible to chezmoi) is the **provisioning layer** = tools (`provision/Brewfile` now; a mise manifest later). The bootstrap orchestrates provisioning and chezmoi as *peers*. On agent machines, the VM manager already **is** the provisioning layer (it owns apt and runs `mise install` from a lockfile), so the dotfiles never install system packages there.
+- **Dropped: the `kind` taxonomy and all `.chezmoi.toml.tmpl` prompts.** OS branching comes from chezmoi's auto-detected `.chezmoi.os`; there are no `personal`/`vm`/`agent` modes and no interactive prompts (which keeps the VM-manager seam non-interactive for free).
 - **The run-script ladder mostly evaporates.** mise / brew / apt / Claude Code installs move to `provision/`; only genuine user-config setup (e.g. oh-my-zsh) would remain as a chezmoi `run_` script. The reserved `30` skills slot is dropped.
 - **Source-location model.** chezmoi's default `~/.local/share/chezmoi` is the real source on every machine (canonical `chezmoi init n2p5/dotfiles`); an optional `~/src/github.com/n2p5/dotfiles` symlink preserves the `~/src` convention. Never make chezmoi's source dir itself a symlink.
 - **Delivery is incremental** — the spec is a reference, not a checklist; rungs are added only when a concrete need appears.
@@ -20,7 +20,7 @@ The body below remains the north-star reference, but several decisions changed a
 
 ## Summary
 
-Redesign `n2p5/dotfiles` so a single repo can bootstrap a complete development environment on three targets — the author's macOS machine, agentworks-managed Debian VMs, and exe.dev cloud environments — and stay reconcilable on every machine via one verb (`chezmoi update`). The current bare-repo approach (`git --git-dir=$HOME/.dotfiles --work-tree=$HOME`) is retired in favor of a normal repo whose root carries an `install.sh` bootstrap shim and whose `home/` subdirectory is a chezmoi source tree.
+Redesign `n2p5/dotfiles` so a single repo can bootstrap a complete development environment on three targets — the author's macOS machine, managed Debian agent VMs, and exe.dev cloud environments — and stay reconcilable on every machine via one verb (`chezmoi update`). The current bare-repo approach (`git --git-dir=$HOME/.dotfiles --work-tree=$HOME`) is retired in favor of a normal repo whose root carries an `install.sh` bootstrap shim and whose `home/` subdirectory is a chezmoi source tree.
 
 Two tools split responsibilities cleanly:
 
@@ -33,9 +33,9 @@ A separate `n2p5/skills` repo will follow Matt Pocock's pattern (Claude Code plu
 
 - One repo bootstraps a fresh machine to a known good state.
 - One reconciliation verb (`chezmoi apply` / `chezmoi update`) keeps any existing machine current.
-- Works on macOS, agentworks Debian VMs, and exe.dev without per-target forks of the bootstrap.
+- Works on macOS, managed Debian VMs, and exe.dev without per-target forks of the bootstrap.
 - Generic configuration is committed; host-specific and secret material stays unmanaged on disk.
-- Compatible with agentworks' `dotfiles_install_cmd` contract: `cd ~/.dotfiles && ./install.sh`, 120 s timeout, non-fatal failure.
+- Compatible with the VM manager's `dotfiles_install_cmd` contract: `cd ~/.dotfiles && ./install.sh`, 120 s timeout, non-fatal failure.
 - Additive growth: adding a new tool, a new OS-specific package, or a new skill is a small, local change.
 
 ## Non-goals
@@ -63,28 +63,20 @@ The repo at `~/src/github.com/n2p5/dotfiles` currently ships:
 
 ### The forcing function
 
-agentworks (`agentworks-cli==0.2.1`, installed at `~/.local/pipx/venvs/agentworks-cli/`) expects:
-
-```toml
-dotfiles_source = "git::https://github.com/user/dotfiles"
-dotfiles_destination = "~/.dotfiles"
-dotfiles_install_cmd = "./install.sh"
-```
-
-At init and reinit, it runs `cd ~/.dotfiles && ./install.sh` with a 120 s timeout, as the target user; failures log a warning and are non-fatal. (See `agentworks/vms/initializer.py:1222-1237` and `agentworks/agents/manager.py:682-762`.)
+The VM-management tooling I use for agent machines (kept generic here as "the VM manager") clones a dotfiles repo to `~/.dotfiles` and, at init and reinit, runs `cd ~/.dotfiles && ./install.sh` as the target user with a 120 s timeout; failures log a warning and are non-fatal.
 
 The bare-repo model has no `install.sh` and cannot satisfy this contract. Conversion to a normal repo with a root `install.sh` is required.
 
-agentworks also natively consumes `mise_lockfile` *after* applying dotfiles, so the dotfiles repo can ship a lockfile that agentworks uses verbatim.
+The VM manager also natively consumes a mise lockfile *after* applying dotfiles, so the dotfiles repo can ship a lockfile that it uses verbatim.
 
 ## Decisions
 
 | # | Decision | Rationale |
 |---|---|---|
-| D1 | Retire the bare-repo approach; convert to a normal git repo. | Required by agentworks' `./install.sh` contract. |
+| D1 | Retire the bare-repo approach; convert to a normal git repo. | Required by the VM manager's `./install.sh` contract. |
 | D2 | Use **chezmoi** as the dotfile manager. | First-class idempotency (`run_once_` / `run_onchange_`, externals, templates) and clean per-machine variance via `.chezmoi.toml`. |
 | D3 | Use **mise** for reproducible toolchains; use chezmoi `run_*` scripts for everything else. | Different problem shapes deserve different tools. mise's lockfile gives reproducibility where it matters; run scripts handle self-updating apps and OS-specific installers without pretending to be a version manager. |
-| D4 | **chezmoi orchestrates** the whole bootstrap; `install.sh` is a ~20-line shim that ensures chezmoi exists and hands off. | Single reconciliation verb; idempotency state owned in one place; agentworks and Mac entry points converge at `chezmoi apply`. |
+| D4 | **chezmoi orchestrates** the whole bootstrap; `install.sh` is a ~20-line shim that ensures chezmoi exists and hands off. | Single reconciliation verb; idempotency state owned in one place; the VM manager and Mac entry points converge at `chezmoi apply`. |
 | D5 | Install **Claude Code via its native installer** from a `run_once_after_` script, not via mise. | The native installer is self-updating; pinning it under mise creates a fight with its background updater. Behavior is steered via `~/.claude/settings.json` (`autoUpdatesChannel`, `minimumVersion`, optional `DISABLE_AUTOUPDATER`). |
 | D6 | Generic config in repo; host-specific/secret material in **unmanaged** `~/.zshrc.local` and `~/.env`, sourced by the managed `dot_zshrc`. | Matches the user's existing model; keeps the public repo private-safe. |
 | D7 | Skills follow Matt Pocock's pattern in a separate `n2p5/skills` repo (plugin manifest + chezmoi external + symlink loop). | Author live, distribute as a plugin, same repo serves both. |
@@ -98,7 +90,7 @@ agentworks also natively consumes `mise_lockfile` *after* applying dotfiles, so 
 Fresh Mac:     sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply n2p5/dotfiles
                    └─ chezmoi self-installs → clones repo → reads home/ → apply
 
-agentworks /   git clone → cd ~/.dotfiles → ./install.sh
+the VM manager /   git clone → cd ~/.dotfiles → ./install.sh
 exe.dev:           └─ shim ensures chezmoi exists → chezmoi init --apply --source $PWD
 
                               ▼ both run the same ladder ▼
@@ -116,9 +108,9 @@ Re-running forever on any machine is `chezmoi update` (pull + apply + re-run any
 ### Repo topology
 
 ```text
-dotfiles/                          # cloned to ~/.dotfiles by agentworks;
+dotfiles/                          # cloned to ~/.dotfiles by the VM manager;
 │                                  # cloned to ~/.local/share/chezmoi on Mac
-├── install.sh                     # bootstrap shim (entry point for agentworks/exe.dev)
+├── install.sh                     # bootstrap shim (entry point for the VM manager/exe.dev)
 ├── .chezmoiroot                   # contains: home
 ├── README.md  .github/  LICENSE
 ├── docs/superpowers/specs/...     # this spec, plus future plans
@@ -149,10 +141,10 @@ dotfiles/                          # cloned to ~/.dotfiles by agentworks;
 
 | Concern | Tool | Why |
 |---|---|---|
-| Languages, dev CLIs (`go`, `node`, `python`, `rust`, `bun`, `uv`, `ripgrep`, `fzf`, `jq`, `gh`, `jj`, `neovim`, `chezmoi` itself) | **mise** | Versions matter; lockfile is reproducible; agentworks reads the same lockfile |
+| Languages, dev CLIs (`go`, `node`, `python`, `rust`, `bun`, `uv`, `ripgrep`, `fzf`, `jq`, `gh`, `jj`, `neovim`, `chezmoi` itself) | **mise** | Versions matter; lockfile is reproducible; the VM manager reads the same lockfile |
 | Claude Code | **chezmoi `run_once_`** (native installer) | Self-updating app; pinning fights its updater |
 | Homebrew + Brewfile (casks, fonts, mas apps) on macOS | **chezmoi `run_once_`** | macOS-native; brew is the idiomatic registry |
-| Linux non-agentworks system packages | **chezmoi `run_once_`** | OS-specific; agentworks owns apt for its VMs |
+| Linux non-the VM manager system packages | **chezmoi `run_once_`** | OS-specific; the VM manager owns apt for its VMs |
 | macOS system prefs (`defaults write …`) | **chezmoi `run_once_`** | Inherently OS-specific; no version concept |
 | oh-my-zsh + zsh plugins | **chezmoi `run_once_`** | Has its own installer + `omz update` |
 
@@ -160,7 +152,7 @@ dotfiles/                          # cloned to ~/.dotfiles by agentworks;
 
 ### `install.sh` (bootstrap shim)
 
-Lives at the repo root. Contract: agentworks runs `cd ~/.dotfiles && ./install.sh` as the target user, with a 120 s timeout, treating non-zero exits as warnings.
+Lives at the repo root. Contract: the VM manager runs `cd ~/.dotfiles && ./install.sh` as the target user, with a 120 s timeout, treating non-zero exits as warnings.
 
 Behavior, in order:
 
@@ -185,7 +177,7 @@ Source root is `home/` via `.chezmoiroot`. Standard chezmoi naming:
 
 Prompts on first `chezmoi init` for:
 
-- `kind` — `personal` (your Mac), `vm` (agentworks/exe.dev), or `agent` (agentworks isolated agent users)
+- `kind` — `personal` (your Mac), `vm` (managed VMs/exe.dev), or `agent` (the VM manager's isolated agent users)
 - `gitName`, `gitEmail` — for templates that need them
 - `claudeCodeChannel` — `stable` (default) or `latest`
 
@@ -200,7 +192,7 @@ Initial scope (refined during implementation):
 - Languages: `go`, `node`, `python`, `rust`, `bun`, `uv`
 - CLIs: `ripgrep`, `fzf`, `jq`, `gh`, `jj`, `neovim`, `chezmoi`
 
-Lockfile is committed and pointed at by agentworks' `mise_lockfile`. The exact lockfile filename and enable-flag will be pinned against current mise docs at implementation time rather than guessed here.
+Lockfile is committed and pointed at by the VM manager's `mise_lockfile`. The exact lockfile filename and enable-flag will be pinned against current mise docs at implementation time rather than guessed here.
 
 ### Run-script ladder
 
@@ -211,7 +203,7 @@ Ordering by numeric prefix. OS branching via `{{ .chezmoi.os }}`; kind-gating vi
 | `10-install-mise.sh.tmpl` | `run_once_before_` | Install mise via official installer if missing |
 | `20-mise-install.sh.tmpl` | `run_onchange_after_` | `mise install` from the manifest; no-op when satisfied. Re-fires when the manifest changes (we template a hash of it into the script header) |
 | `40-oh-my-zsh.sh.tmpl` | `run_once_after_` | omz installer; install zsh plugins listed in `dot_zshrc` |
-| `50-os-packages.sh.tmpl` | `run_once_after_` | `darwin`: `brew bundle --file=~/.config/dotfiles/macos.Brewfile`. `linux` *and* `kind != vm`: apply `~/.config/dotfiles/linux.apt.list`. (On agentworks VMs, apt is owned by agentworks' catalog, so this branch is skipped.) |
+| `50-os-packages.sh.tmpl` | `run_once_after_` | `darwin`: `brew bundle --file=~/.config/dotfiles/macos.Brewfile`. `linux` *and* `kind != vm`: apply `~/.config/dotfiles/linux.apt.list`. (On managed VMs, apt is owned by the VM manager's catalog, so this branch is skipped.) |
 | `60-claude-code.sh.tmpl` | `run_once_after_` | `curl -fsSL https://claude.ai/install.sh \| bash -s {{ .claudeCodeChannel }}` |
 | `70-macos-defaults.sh.tmpl` | `run_once_after_` | `darwin` only; applies `~/.config/dotfiles/macos.defaults.sh`. Skipped if the file is empty |
 
@@ -219,9 +211,9 @@ Re-run semantics: `run_onchange_` re-fires when the rendered script content chan
 
 The numeric prefix `30` is intentionally skipped — reserved for the deferred `run_onchange_30-link-skills.sh.tmpl` (see the skills subsystem section). When that lands, it slots in between `mise-install` and `oh-my-zsh` without renumbering anything.
 
-#### Note on the 120 s agentworks budget
+#### Note on the 120 s the VM manager budget
 
-The 20-mise-install script may exceed 120 s on a *fresh* VM if many toolchains are pinned. We accept this: agentworks treats the failure as non-fatal *and* runs its own `mise install` step from the same lockfile right after, which is the authoritative backstop. On subsequent reinits, mise install is a fast no-op. We do not try to outrun the budget.
+The 20-mise-install script may exceed 120 s on a *fresh* VM if many toolchains are pinned. We accept this: the VM manager treats the failure as non-fatal *and* runs its own `mise install` step from the same lockfile right after, which is the authoritative backstop. On subsequent reinits, mise install is a fast no-op. We do not try to outrun the budget.
 
 ### `dot_claude/`
 
@@ -272,10 +264,10 @@ $ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply n2p5/dotfiles
        run_once_after_70-macos-defaults    → defaults applied
 ```
 
-### agentworks VM init / reinit
+### Managed-VM init / reinit
 
 ```text
-agentworks vm init|reinit
+(vm manager) init|reinit
   ├─ (already provisioned: openssh, sudo, git, tmux, tmuxinator, acl, jq, unzip)
   ├─ git clone n2p5/dotfiles → ~/.dotfiles
   ├─ cd ~/.dotfiles && ./install.sh        (120 s timeout, non-fatal)
@@ -284,8 +276,8 @@ agentworks vm init|reinit
   │         ├─ apply files
   │         ├─ run scripts (20-mise-install may be clipped on first init)
   │         └─ claude-code installed
-  ├─ agentworks's own mise step runs `mise install` from our lockfile  (backstop)
-  └─ agentworks's agent-user setup runs each agent's dotfiles step
+  ├─ the VM manager's own mise step runs `mise install` from our lockfile  (backstop)
+  └─ the VM manager's agent-user setup runs each agent's dotfiles step
 ```
 
 ## Skills subsystem — DEFERRED to a follow-up
@@ -333,7 +325,7 @@ scripts/link-skills.sh       # author-side helper for non-chezmoi users
 CLAUDE.md  CONTEXT.md  docs/adr/   # methodology, grown over time
 ```
 
-Private/work-only skills do not belong in this public repo. When the need arises, add a second private repo (e.g. `n2p5/skills-private`) as another chezmoi external — same machinery, separate visibility. Do not build now.
+Private/work-only skills do not belong in this public repo. When the need arises, add a second, private skills repo as another chezmoi external — same machinery, separate visibility. Do not build now.
 
 ### The chezmoi external (future addition to `home/.chezmoiexternal.toml.tmpl`)
 
@@ -384,8 +376,8 @@ On any other machine: `chezmoi update` → external pulls → link script re-fir
 ## Error handling
 
 - Every run script uses `set -euo pipefail` and fails loudly locally — silent corruption is the enemy.
-- On agentworks VMs, `./install.sh` is non-fatal by agentworks' contract; a partial chezmoi apply does not brick the VM. agentworks' own subsequent mise step is the backstop for the heavy `mise install`.
-- The 120 s timeout: the *first* run on a fresh VM may be clipped; agentworks completes the install separately. We accept "slow on first init, instant after."
+- On managed VMs, `./install.sh` is non-fatal by the VM manager's contract; a partial chezmoi apply does not brick the VM. The VM manager's own subsequent mise step is the backstop for the heavy `mise install`.
+- The 120 s timeout: the *first* run on a fresh VM may be clipped; the VM manager completes the install separately. We accept "slow on first init, instant after."
 - chezmoi has a sanity layer: `chezmoi doctor`, `chezmoi diff`, `chezmoi verify`. We do not add more.
 
 ## Testing
@@ -410,7 +402,7 @@ Six steps, reversible until step 5:
    chezmoi apply
    ```
 
-5. **Retire the bare repo**: verify `grep ddot ~/.zshrc` returns nothing (step 2's new `dot_zshrc` omits the alias, so step 4's `chezmoi apply` already removed it), then `rm -rf ~/.dotfiles` (the old bare git dir — frees the path so agentworks can use it as its `dotfiles_destination`).
+5. **Retire the bare repo**: verify `grep ddot ~/.zshrc` returns nothing (step 2's new `dot_zshrc` omits the alias, so step 4's `chezmoi apply` already removed it), then `rm -rf ~/.dotfiles` (the old bare git dir — frees the path so the VM manager can use it as its `dotfiles_destination`).
 6. **Verify**: `claude --version`, `mise list`, fresh shell loads, `chezmoi verify`. If anything is wrong, restore from step 1's backup and iterate.
 
 After that, the fresh-machine story is:
@@ -419,7 +411,7 @@ After that, the fresh-machine story is:
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply n2p5/dotfiles
 ```
 
-…and the agentworks/exe.dev story is whatever those tools already do — clone the repo and run `./install.sh`.
+…and the managed-VM/exe.dev story is whatever those tools already do — clone the repo and run `./install.sh`.
 
 ## Out of scope (this iteration)
 
@@ -442,4 +434,3 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply n2p5/dotfiles
 - [Claude Code setup](https://code.claude.com/docs/en/setup)
 - [mise registry](https://mise.jdx.dev/registry.html)
 - [mattpocock/skills](https://github.com/mattpocock/skills) — the pattern this design follows for skills
-- agentworks dotfiles contract: `agentworks/vms/initializer.py:1222-1237`, `agentworks/agents/manager.py:682-762` in `agentworks-cli==0.2.1`
