@@ -14,3 +14,7 @@ Desktop.ini
 .claude/settings.local.json
 .env
 .env.local
+
+# Local working notes / scratch — planning docs, spikes, throwaway files.
+# Lives in-repo for convenience but is never committed.
+scratch/
