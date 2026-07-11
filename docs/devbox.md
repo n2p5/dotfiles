@@ -36,25 +36,31 @@ ssh exe.dev new myproject          ← fresh VM; setup script bootstraps it
 machine, unattended:
 
 ```text
-bootstrap.sh
-  ├─ provision/debian.sh   tools: apt packages, neovim, rust, zig, jj,
-  │                        chezmoi, claude, tailscale, oh-my-zsh, chsh to zsh
-  └─ chezmoi init --apply  config: this repo's home/ applied to $HOME
+bootstrap.sh                  runs Layer 1 then Layer 2 (see AGW_BOOTSTRAP below)
+  ├─ provision/debian.sh   Layer 1 · tools (sudo): apt packages, neovim, rust,
+  │                        zig, jj, chezmoi, claude, tailscale, oh-my-zsh, chsh
+  └─ wire.sh               Layer 2 · config (no sudo): chezmoi applies home/ → $HOME
 ```
+
+Layer 1 mutates the system (apt, `/usr/local`, login shell), so `bootstrap.sh`
+refuses to run it unattended unless you confirm intent with `AGW_BOOTSTRAP=1` —
+a guard against a mis-fired run clobbering an established box. The commands below
+set it. (`WIRE_ONLY=1` runs Layer 2 alone — config, no installs, no sudo — which
+is what an unprivileged agent inheriting a VM's tools wants.)
 
 Three ways to run it:
 
 ```bash
 # 1. account-wide default — every future `ssh exe.dev new` self-bootstraps
-printf '#!/bin/bash\ncurl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | sh\n' \
+printf '#!/bin/bash\ncurl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | AGW_BOOTSTRAP=1 sh\n' \
   | ssh exe.dev defaults write dev.exe new.setup-script
 
 # 2. per-VM, at creation
-printf '#!/bin/bash\ncurl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | sh\n' \
+printf '#!/bin/bash\ncurl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | AGW_BOOTSTRAP=1 sh\n' \
   | ssh exe.dev new myproject --setup-script /dev/stdin
 
 # 3. in place, on any existing box
-ssh myproject.exe.xyz 'curl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | sh'
+ssh myproject.exe.xyz 'curl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | AGW_BOOTSTRAP=1 sh'
 ```
 
 exe.dev runs setup scripts as `/exe.dev/setup` once at first boot. The
@@ -64,10 +70,14 @@ so the account default never goes stale. Setup scripts run on `new` only —
 `cp` clones inherit the already-bootstrapped disk instead, which is exactly
 what you want.
 
-Re-running `bootstrap.sh` is safe: apt no-ops on what's present, vendor
-installers no-op or refresh to latest, and the chezmoi step becomes
-`chezmoi update`. To verify a first boot worked, ssh in and look for
-`bootstrap.sh: complete` in the setup log — or just re-run it.
+Re-running `bootstrap.sh` is safe and cheap: both layers are idempotent by
+presence-detection. Layer 1's apt and vendor installers skip whatever is already
+there (a full re-run settles in about a second); Layer 2 re-applies the dotfiles
+straight from the checkout with `chezmoi apply --source` — stateless, so there's
+no persisted source path to drift. To reconcile config without touching tools,
+run `WIRE_ONLY=1 bootstrap.sh` (or `chezmoi apply` directly). To verify a first
+boot worked, ssh in and look for `bootstrap.sh: complete` in the setup log — or
+just re-run it.
 
 ## Keeping personal data out of a public repo
 
