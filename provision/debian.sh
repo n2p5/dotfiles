@@ -28,22 +28,30 @@ mkdir -p "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 # --- apt --------------------------------------------------------------------
-# Recover any half-configured state left by a previously interrupted apt run,
-# then install. apt-get install is naturally idempotent (installed packages are
-# skipped), so packages agentworks pre-installed no-op here.
-$SUDO dpkg --configure -a || true
-$SUDO apt-get update
-# shellcheck disable=SC2086  # APT_OPTS must word-split into separate -o flags
-$SUDO apt-get install -y $APT_OPTS \
-  zsh tmux tmuxinator \
-  ripgrep fzf entr cloc shellcheck luarocks \
-  htop procps wget pwgen nmap \
-  qemu-system-x86 qemu-utils \
-  git curl gh jq ca-certificates xz-utils
+# APT_PACKAGES is the shared set that agentworks ALSO pre-installs via its
+# vm_template.apt (in a roomier 300s window, before this script). Keep the two
+# in sync — provision/check-apt-drift.py guards that. It's one flat line on
+# purpose: trivial for the drift tool to parse.
+APT_PACKAGES="zsh tmux tmuxinator ripgrep fzf entr cloc shellcheck luarocks htop procps wget pwgen nmap git curl gh jq ca-certificates xz-utils"
+# Heavy extras for bare-metal / exe.dev only. qemu is big + slow (~2min to
+# install) and unneeded on agentworks VMs, which set SKIP_HEAVY=1 so it can't
+# blow their 120s dotfiles window. NOT in vm_template.apt, so the drift tool
+# ignores it. qemu-system-x86 (not the qemu-system metapackage, which pulls
+# emulators for every arch).
+APT_PACKAGES_HEAVY="qemu-system-x86 qemu-utils"
 # go: absent on purpose (exe.dev's exeuntu ships the latest go.dev build; apt's
 # golang would shadow it). neovim: absent on purpose (apt's build is too old) —
-# installed from the official tarball below. qemu-system-x86 (not the
-# qemu-system metapackage, which pulls emulators for every architecture).
+# installed from the official tarball below.
+
+# Recover any half-configured state left by a previously interrupted apt run,
+# then install. apt-get install is naturally idempotent (installed packages are
+# skipped), so whatever vm_template.apt pre-installed no-ops here.
+$SUDO dpkg --configure -a || true
+$SUDO apt-get update
+heavy=""
+[ "${SKIP_HEAVY:-0}" = "1" ] || heavy="$APT_PACKAGES_HEAVY"
+# shellcheck disable=SC2086  # APT_OPTS + package lists must word-split
+$SUDO apt-get install -y $APT_OPTS $APT_PACKAGES $heavy
 
 # --- vendor channels: tools apt has stale or missing ------------------------
 # Each guarded by presence-detection: skip if already on PATH.
