@@ -2,7 +2,9 @@
 # by provision/operator-config.sh (via `op inject`) from
 # provision/agentworks-config.toml.tmpl in the dotfiles repo. To change it, edit
 # the template and re-run operator-config.sh. The [proxmox] values come from
-# 1Password (op://Private/homelab/proxmox-*); everything else is literal.
+# 1Password (the homelab item's proxmox-* fields); everything else is literal.
+# NOTE: op inject resolves EVERY 1Password secret reference in the file, not just
+# the {{ }}-wrapped ones — so keep bare references out of comments and strings.
 #
 # Operator-workstation only — this is NOT part of the chezmoi-managed home/ tree,
 # so `chezmoi apply` on a VM never renders it.
@@ -29,10 +31,10 @@ backends = ["env-var", "prompt"]
 # new VM to the tailnet. env-var convention → AW_SECRET_TAILSCALE_AUTH_KEY.
 [secrets.tailscale-auth-key]
 description = "Tailscale auth key for joining agentworks VMs to the tailnet"
-hint = "1Password → export AW_SECRET_TAILSCALE_AUTH_KEY=$(op read op://…/auth-key)"
+hint = "1Password: op read the tailscale auth key into AW_SECRET_TAILSCALE_AUTH_KEY"
 
 # --- Proxmox homelab --------------------------------------------------------
-# Infra identifiers, injected from 1Password (op://Private/homelab/proxmox-*) so
+# Infra identifiers, injected from 1Password's homelab item (proxmox-* fields) so
 # nothing homelab-identifying lands in the public repo. The API *token secret* is
 # NOT here — it comes from the PROXMOX_TOKEN_SECRET env var (also from 1Password).
 [proxmox]

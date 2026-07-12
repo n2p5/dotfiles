@@ -26,6 +26,17 @@ op whoami >/dev/null 2>&1 || {
 }
 [ -f "$tmpl" ] || { echo "operator-config.sh: template not found: $tmpl" >&2; exit 1; }
 
+# Preflight: op inject resolves EVERY op:// reference in the file, not just the
+# {{ }}-wrapped ones. A bare op:// (e.g. left in a comment) makes inject fail or,
+# worse, resolve a bogus reference. Catch it here with a clear message.
+bare="$(grep -n 'op://' "$tmpl" | grep -v '{{ op://' || true)"
+if [ -n "$bare" ]; then
+  echo "operator-config.sh: template has a bare op:// reference — op inject resolves ALL of them:" >&2
+  echo "$bare" | sed 's/^/  /' >&2
+  echo "  Wrap real refs as {{ op://... }} and remove op:// from comments/strings." >&2
+  exit 1
+fi
+
 mkdir -p "$(dirname "$dest")"
 if [ -f "$dest" ]; then
   bak="$dest.bak.$(date -u +%Y%m%dT%H%M%SZ)"
