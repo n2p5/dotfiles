@@ -26,14 +26,15 @@ op whoami >/dev/null 2>&1 || {
 }
 [ -f "$tmpl" ] || { echo "operator-config.sh: template not found: $tmpl" >&2; exit 1; }
 
-# Preflight: op inject resolves EVERY op:// reference in the file, not just the
-# {{ }}-wrapped ones. A bare op:// (e.g. left in a comment) makes inject fail or,
-# worse, resolve a bogus reference. Catch it here with a clear message.
-bare="$(grep -n 'op://' "$tmpl" | grep -v '{{ op://' || true)"
-if [ -n "$bare" ]; then
-  echo "operator-config.sh: template has a bare op:// reference — op inject resolves ALL of them:" >&2
-  echo "$bare" | sed 's/^/  /' >&2
-  echo "  Wrap real refs as {{ op://... }} and remove op:// from comments/strings." >&2
+# Preflight: op inject parses the WHOLE file — every secret reference and every
+# {{ }} directive, including inside comments. So the only op:// and the only {{
+# allowed are the intended "{{ op://... }}" refs. A stray op:// in a comment, or a
+# literal {{ }} in prose, makes inject fail. Catch both here with a clear message.
+stray="$(grep -nE 'op://|\{\{' "$tmpl" | grep -vE '\{\{ op://[^}]*\}\}' || true)"
+if [ -n "$stray" ]; then
+  echo "operator-config.sh: template has an op:// or {{ }} outside an intended ref:" >&2
+  echo "$stray" | sed 's/^/  /' >&2
+  echo "  Only '{{ op://vault/item/field }}' refs are allowed; keep op:// and {{ }} out of comments/strings." >&2
   exit 1
 fi
 

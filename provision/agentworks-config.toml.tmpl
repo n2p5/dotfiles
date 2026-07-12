@@ -3,8 +3,6 @@
 # provision/agentworks-config.toml.tmpl in the dotfiles repo. To change it, edit
 # the template and re-run operator-config.sh. The [proxmox] values come from
 # 1Password (the homelab item's proxmox-* fields); everything else is literal.
-# NOTE: op inject resolves EVERY 1Password secret reference in the file, not just
-# the {{ }}-wrapped ones — so keep bare references out of comments and strings.
 #
 # Operator-workstation only — this is NOT part of the chezmoi-managed home/ tree,
 # so `chezmoi apply` on a VM never renders it.
