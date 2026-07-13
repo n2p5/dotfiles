@@ -25,7 +25,12 @@ command -v chezmoi >/dev/null 2>&1 || \
 # checkout beside us.
 src="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 if [ -f "$src/.chezmoiroot" ]; then
-  chezmoi apply --source "$src"
+  # --force: apply non-interactively even when the target changed since chezmoi
+  # last wrote it. agentworks appends its own hook to ~/.zshrc AFTER the dotfiles
+  # step, so on the next reinit chezmoi sees the file changed and would prompt
+  # ("overwrite?") — fatal in a no-TTY SSH run. Forcing re-establishes the
+  # declarative base each time; agentworks re-appends its hook right after.
+  chezmoi apply --source "$src" --force
 else
   chezmoi init --apply n2p5/dotfiles
 fi
