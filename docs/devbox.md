@@ -10,7 +10,7 @@ machines, no per-task setup.
 ## The pattern
 
 ```text
-ssh exe.dev new myproject          ← fresh VM; setup script bootstraps it
+ssh exe.dev new --name=myproject   ← fresh VM; setup script bootstraps it
         │                            (tools + dotfiles, unattended)
         ▼
    myproject (root VM)             ← the golden base; never hand-tweaked
@@ -57,11 +57,17 @@ printf '#!/bin/bash\ncurl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/
 
 # 2. per-VM, at creation
 printf '#!/bin/bash\ncurl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | AGW_BOOTSTRAP=1 sh\n' \
-  | ssh exe.dev new myproject --setup-script /dev/stdin
+  | ssh exe.dev new --name=myproject --setup-script=/dev/stdin
 
 # 3. in place, on any existing box
 ssh myproject.exe.xyz 'curl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | AGW_BOOTSTRAP=1 sh'
 ```
+
+One CLI quirk: `ssh` joins its arguments with spaces before the exe.dev side
+parses them, so local shell quoting is lost — a multi-word flag value like
+`--comment='client box'` arrives as stray positional arguments and the command
+fails. Keep flag values single-word at creation and add prose afterwards
+(`ssh exe.dev comment myproject client box` handles spaces fine).
 
 exe.dev runs setup scripts as `/exe.dev/setup` once at first boot. The
 stored script is a one-line shim by design ("use indirection", per the
