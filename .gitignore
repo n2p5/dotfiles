@@ -18,3 +18,7 @@ Desktop.ini
 # Local working notes / scratch — planning docs, spikes, throwaway files.
 # Lives in-repo for convenience but is never committed.
 scratch/
+
+# Literal "$XDG_CONFIG_HOME" dir created when a tool runs with the
+# variable unexpanded (nvim writes its pack lock file there).
+$XDG_CONFIG_HOME/
