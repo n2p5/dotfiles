@@ -2,8 +2,8 @@ export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 
 plugins=(
-    git github gh jj
-    aws azure gcloud 
+    git gh jj
+    aws azure gcloud
     bun golang python uv
     docker podman kubectl
     pass encode64
