@@ -21,11 +21,9 @@ APT_OPTS='-o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef'
 if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
 
 mkdir -p "$HOME/.local/bin"
-# Put the user-local bindirs on PATH so the presence guards below actually see
-# tools a prior run installed. Without this, ~/.local/bin (chezmoi, claude, jj)
-# and ~/.cargo/bin (rustup) aren't on PATH during this non-login script, so every
-# `command -v` misses and the slow vendor installs re-run every time.
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+# Put ~/.local/bin on PATH so the presence guards below see tools a prior run
+# installed (claude); otherwise the vendor installs re-run every time.
+export PATH="$HOME/.local/bin:$PATH"
 
 # --- apt --------------------------------------------------------------------
 # APT_PACKAGES is the shared set that agentworks ALSO pre-installs via its
@@ -39,9 +37,8 @@ APT_PACKAGES="zsh tmux tmuxinator ripgrep fzf entr cloc shellcheck luarocks htop
 # ignores it. qemu-system-x86 (not the qemu-system metapackage, which pulls
 # emulators for every arch).
 APT_PACKAGES_HEAVY="qemu-system-x86 qemu-utils"
-# go: absent on purpose (exe.dev's exeuntu ships the latest go.dev build; apt's
-# golang would shadow it). neovim: absent on purpose (apt's build is too old) —
-# installed from the official tarball below.
+# go, neovim, etc: absent on purpose — apt's builds are stale; mise owns them
+# (provision/tools.sh).
 
 # Recover any half-configured state left by a previously interrupted apt run,
 # then install. apt-get install is naturally idempotent (installed packages are
@@ -56,56 +53,13 @@ $SUDO apt-get install -y $APT_OPTS $APT_PACKAGES $heavy
 # --- vendor channels: tools apt has stale or missing ------------------------
 # Each guarded by presence-detection: skip if already on PATH.
 
-# chezmoi → ~/.local/bin
-command -v chezmoi >/dev/null 2>&1 || \
-  sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
-
 # claude code (native installer; self-updates thereafter)
 command -v claude >/dev/null 2>&1 || \
   curl -fsSL https://claude.ai/install.sh | bash
 
-# rust via rustup (~/.cargo/bin is on PATH in dot_zshrc)
-command -v rustup >/dev/null 2>&1 || \
-  curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
-
-# jj — prebuilt musl binary from the latest GitHub release
-if ! command -v jj >/dev/null 2>&1; then
-  jj_url=$(curl -fsSL https://api.github.com/repos/jj-vcs/jj/releases/latest \
-    | jq -r '.assets[].browser_download_url' \
-    | grep "$(uname -m)-unknown-linux-musl\.tar\.gz$")
-  tmp=$(mktemp -d)
-  curl -fsSL "$jj_url" | tar -xz -C "$tmp"
-  install -m 0755 "$(find "$tmp" -name jj -type f)" "$HOME/.local/bin/jj"
-  rm -rf "$tmp"
-fi
-
-# zig — latest stable tarball from ziglang.org
-if ! command -v zig >/dev/null 2>&1; then
-  zig_url=$(curl -fsSL https://ziglang.org/download/index.json \
-    | jq -r "to_entries | map(select(.key != \"master\")) | .[0].value.\"$(uname -m)-linux\".tarball")
-  tmp=$(mktemp -d)
-  curl -fsSL "$zig_url" | tar -xJ -C "$tmp"
-  $SUDO rm -rf /usr/local/zig
-  $SUDO mv "$tmp"/zig-* /usr/local/zig
-  $SUDO ln -sfn /usr/local/zig/zig /usr/local/bin/zig
-  rm -rf "$tmp"
-fi
-
-# neovim — official release tarball (apt's build is too old for a modern config)
-if ! command -v nvim >/dev/null 2>&1; then
-  case "$(uname -m)" in
-    x86_64)  nvim_arch="x86_64" ;;
-    aarch64) nvim_arch="arm64" ;;
-    *) echo "debian.sh: unsupported arch for neovim: $(uname -m)" >&2; exit 1 ;;
-  esac
-  tmp=$(mktemp -d)
-  curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
-    | tar -xz -C "$tmp"
-  $SUDO rm -rf "/opt/nvim-linux-${nvim_arch}"
-  $SUDO mv "$tmp/nvim-linux-${nvim_arch}" /opt/
-  $SUDO ln -sfn "/opt/nvim-linux-${nvim_arch}/bin/nvim" /usr/local/bin/nvim
-  rm -rf "$tmp"
-fi
+# chezmoi, neovim, jj, zig, rust, go, herdr, ... are NOT installed here: they
+# are declared in home/dot_config/mise/config.toml and installed per-user by
+# provision/tools.sh (mise). This layer is only what needs sudo.
 
 # tailscale — install only. NEVER `tailscale up` here: a clone would duplicate
 # the node identity (this bit us — a clone hijacked a live VM's tailnet node).
