@@ -756,7 +756,14 @@ vim.lsp.config("lua_ls", {
 })
 vim.lsp.config("pyright", {})
 vim.lsp.config("bashls", {})
-vim.lsp.config("ts_ls", {})
+-- ts_ls doesn't find a TypeScript on PATH; fall back to the mise-installed one
+-- for projects that don't have their own in node_modules (which still wins).
+local tsserver = vim.fn.exepath("tsserver")
+vim.lsp.config("ts_ls", tsserver == "" and {} or {
+	init_options = {
+		tsserver = { fallbackPath = vim.fn.fnamemodify(tsserver, ":h:h") .. "/typescript/lib" },
+	},
+})
 vim.lsp.config("gopls", {})
 vim.lsp.config("clangd", {})
 

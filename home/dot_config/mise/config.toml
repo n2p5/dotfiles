@@ -19,3 +19,28 @@ zig = "latest"
 node = "lts"
 bun = "latest"
 uv = "latest"
+
+# --- neovim: LSP servers (vim.lsp.enable in init.lua) ---
+lua-language-server = "latest"
+"npm:pyright" = "latest"
+"npm:bash-language-server" = "latest"
+"npm:typescript-language-server" = "latest"
+"npm:typescript" = "5" # ts_ls needs tsserver; 7.x (native) dropped it
+"go:golang.org/x/tools/gopls" = "latest"
+"github:clangd/clangd" = "latest"
+"aqua:mattn/efm-langserver" = "latest"
+
+# --- neovim: efm linters/formatters (efmls-configs in init.lua) ---
+stylua = "latest"
+"github:lunarmodules/luacheck" = "latest"
+"pipx:black" = "latest"
+"pipx:flake8" = "latest"
+"npm:@fsouza/prettierd" = "latest"
+"npm:eslint_d" = "latest"
+"npm:fixjson" = "latest"
+shellcheck = "latest"
+shfmt = "latest"
+"pipx:cpplint" = "latest"
+"pipx:clang-format" = "latest"
+revive = "latest"
+# gofmt ships with go
