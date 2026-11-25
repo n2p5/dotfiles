@@ -1,6 +1,10 @@
 # CLAUDE
 
+{{ if stat (joinPath .chezmoi.homeDir ".claude/exe.dev.md") -}}
+// includes
+@~/.claude/exe.dev.md
 
+{{ end -}}
 ## Hard rules
 
 - Never add "Generated with Claude Code," Co-Authored-By trailers, or any AI attribution to commits, PRs, or issues.
