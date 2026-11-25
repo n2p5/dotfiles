@@ -1,0 +1,24 @@
+# Global toolset — mise is the primary installer for user-level dev tools.
+# Applied to ~/.config/mise/config.toml by chezmoi; installed by
+# provision/tools.sh (`mise install`). apt/brew keep only what mise can't do
+# well (shells, system services, libraries).
+
+[tools]
+# core dev
+chezmoi = "latest"
+neovim = "latest"
+jj = "latest"
+fzf = "latest"
+herdr = "latest"
+
+# languages / runtimes
+go = "latest"
+rust = "stable"
+zig = "latest"
+node = "lts"
+bun = "latest"
+uv = "latest"
+
+[settings]
+# Non-interactive bootstrap: never prompt.
+yes = true

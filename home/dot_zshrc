@@ -17,6 +17,9 @@ export PATH=$GOPATH/bin:$PATH
 export PATH="$HOME/.cargo/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
+# --- mise: dev tools from ~/.config/mise/config.toml (after PATH so it wins) ---
+command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
+
 # --- custom functions and local overrides ---
 [[ -f ~/.shell_functions ]] && source $HOME/.shell_functions
 

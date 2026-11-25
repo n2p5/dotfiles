@@ -6,11 +6,12 @@
 #
 #   AGW_BOOTSTRAP=1 curl -fsLS https://raw.githubusercontent.com/n2p5/dotfiles/main/bootstrap.sh | sh
 #
-#   Layer 1  provision/debian.sh — system tools (apt + vendor), needs sudo
+#   Layer 1  provision/debian.sh — system packages (apt + vendor), needs sudo
 #   Layer 2  wire.sh             — dotfiles config via chezmoi, no sudo
+#   Layer 3  provision/tools.sh  — dev tools via mise (~/.config/mise), no sudo
 #
 # Toggles:
-#   WIRE_ONLY=1      skip Layer 1 (config only; e.g. an agent inheriting VM tools)
+#   WIRE_ONLY=1      skip Layers 1 and 3 (config only; e.g. an agent inheriting VM tools)
 #   AGW_BOOTSTRAP=1  confirm a non-interactive Layer-1 run (safety interlock)
 set -eu
 
@@ -58,5 +59,10 @@ fi
 
 echo "bootstrap.sh: Layer 2 — dotfiles (wire.sh)"
 run_layer wire.sh
+
+if [ "${WIRE_ONLY:-0}" != "1" ]; then
+  echo "bootstrap.sh: Layer 3 — dev tools (provision/tools.sh, mise)"
+  run_layer provision/tools.sh
+fi
 
 echo "bootstrap.sh: complete — start a new shell to land in zsh"

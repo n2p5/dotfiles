@@ -1,0 +1,18 @@
+# Repo tasks — `mise run <task>` from this checkout. Thin wrappers over the
+# layer scripts so they stay runnable without mise (curl | sh bootstrap).
+
+[tasks.bootstrap]
+description = "Full setup: system packages, dotfiles, dev tools"
+run = "sh bootstrap.sh"
+
+[tasks.wire]
+description = "Apply dotfiles config (chezmoi), no installs"
+run = "sh wire.sh"
+
+[tasks.tools]
+description = "Install/refresh dev tools from home/dot_config/mise/config.toml"
+run = "sh provision/tools.sh"
+
+[tasks.upgrade]
+description = "Upgrade mise-managed tools to latest matching versions"
+run = "mise upgrade"
