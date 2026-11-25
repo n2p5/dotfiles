@@ -470,6 +470,9 @@ local setup_treesitter = function()
 		"python",
 	}
 
+	-- provision/tools.sh reads this to install parsers synchronously at bootstrap
+	vim.g.ts_ensure_installed = ensure_installed
+
 	local config = require("nvim-treesitter.config")
 
 	local already_installed = config.get_installed()
